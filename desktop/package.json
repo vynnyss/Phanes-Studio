@@ -1,0 +1,17 @@
+{
+  "name": "phanes-studio",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Phanes Studio desktop application with a shared local agent queue",
+  "productName": "Phanes Studio",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package": "node package.cjs"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "rcedit": "5.0.2"
+  }
+}

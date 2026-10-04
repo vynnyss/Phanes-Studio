@@ -1,0 +1,10 @@
+{
+  "name": "phanes-runtime-tools",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Downloaded remesh dependencies, excluded from source control",
+  "dependencies": {
+    "meshoptimizer": "1.3.0"
+  }
+}

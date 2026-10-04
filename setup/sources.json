@@ -1,0 +1,36 @@
+{
+  "runtime": {
+    "repository": "https://github.com/IgorAherne/TRELLIS.2-stableprojectorz",
+    "version": "v22",
+    "url": "https://github.com/IgorAherne/TRELLIS.2-stableprojectorz/releases/download/latest/trellis2-stableprojectorz_v22.zip",
+    "sha256": "62be7caefaf12e396763dfec4b5e688fdd83c9450920090dfdb8082bd43811be"
+  },
+  "models": [
+    {
+      "name": "dinov3",
+      "url": "https://github.com/IgorAherne/TRELLIS.2-stableprojectorz/releases/download/extra-models/dinov3.zip",
+      "sha256": "1b6d24ef5f5e70435160eb7ac318426cf7a6ba20d3f159d17b0dd168fc7de672",
+      "required_file": "model.safetensors"
+    },
+    {
+      "name": "RMBG-2.0",
+      "url": "https://github.com/IgorAherne/TRELLIS.2-stableprojectorz/releases/download/extra-models/RMBG-2.0.zip",
+      "sha256": "0d39c4e2b2e6a5ce3ef644ee7fed0df7c4c93da275903305ca8a88c63413a147",
+      "required_file": "model.safetensors"
+    }
+  ],
+  "huggingface": [
+    {
+      "repo_id": "microsoft/TRELLIS.2-4B",
+      "revision": "af44b45f2e35a493886929c6d786e563ec68364d"
+    },
+    {
+      "repo_id": "microsoft/TRELLIS-image-large",
+      "revision": "25e0d31ffbebe4b5a97464dd851910efc3002d96"
+    }
+  ],
+  "instant_meshes": {
+    "url": "https://instant-meshes.s3.eu-central-1.amazonaws.com/Release/instant-meshes-windows.zip",
+    "sha256": "c9f6217e83ea90f98a8cd54cf82dac88420df20cf197e7a4ef2bef81c5ae068d"
+  }
+}
