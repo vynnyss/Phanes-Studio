@@ -174,7 +174,9 @@ shutil.copy2(args.input, output / 'color0.png')
         response.raise_for_status()
         components = response.json()["components"]
         assert any(item["type"] == "model3d" for item in components)
-        assert sum(item["type"] == "gallery" for item in components) == 2
+        assert sum(item["type"] == "gallery" for item in components) == 3
+        assert any(item["type"] == "gallery" and item["props"].get("elem_id") == "texture-viewer"
+                   for item in components)
         checks["lazy_gradio_mount_preserves_existing_components"] = True
 
         import gradio_client

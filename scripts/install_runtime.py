@@ -218,6 +218,8 @@ def main():
         run_pip("install", "-r", str(ROOT / "requirements-studio.txt"))
     if arguments.optional_tools:
         install_optional_tools()
+        from install_uvgami import install as install_uvgami
+        install_uvgami()
     run_pip("check")
     report = check_installation()
     if report["missing_models"] and not arguments.skip_models:

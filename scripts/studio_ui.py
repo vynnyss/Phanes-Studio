@@ -8,6 +8,7 @@ import subprocess
 import gradio as gr
 
 from studio_service import ROOT
+from studio_textures import TEXTURE_LABELS, texture_maps
 from studio_lod_export import export_lods, triangle_count
 from studio_progress import read_progress, stage_label
 from studio_pagination import (
@@ -16,9 +17,34 @@ from studio_pagination import (
 
 
 def build_demo(studio):
+    selection_size = 12
+    texture_cache = ROOT / "local_data/studio/texture-previews"
+
+    def texture_buttons(maps, mode="3d", completed=True):
+        return tuple(
+            gr.update(interactive=completed and (channel == "3d" or bool(maps.get(channel))),
+                      variant="primary" if channel == mode and completed else "secondary")
+            for channel in ("3d", *TEXTURE_LABELS)
+        )
+
+    def show_texture(identifier, channel):
+        if not identifier or studio.history_entry(identifier)["status"] != "completed":
+            return (gr.skip(),) * 6
+        maps = texture_maps(studio.variant(identifier)["model"], texture_cache)
+        if channel != "3d" and not maps[channel]:
+            gr.Info(f"{TEXTURE_LABELS[channel]} não está disponível neste modelo.")
+            return (gr.skip(),) * 6
+        return (
+            gr.update(visible=channel == "3d"),
+            gr.update(value=None if channel == "3d" else maps[channel],
+                      label="Textura" if channel == "3d" else TEXTURE_LABELS[channel],
+                      visible=True if channel != "3d" else "hidden", selected_index=0),
+            *texture_buttons(maps, mode=channel),
+        )
+
     def selected_model(identifier):
         if not identifier:
-            return (gr.skip(),) * 7
+            return (gr.skip(),) * selection_size
         entry = studio.history_entry(identifier)
         if entry["status"] == "completed":
             model = studio.variant(identifier)
@@ -26,7 +52,7 @@ def build_demo(studio):
             if model["report"] and Path(model["report"]).is_file():
                 report = json.loads(Path(model["report"]).read_text(encoding="utf-8-sig"))
             count = report.get("triangles") or report.get("optimized", {}).get("triangles")
-            title = f"### {model['name']}\n**{'Original / high-poly' if model['kind'] == 'high' else 'Remesh / low-poly'}**"
+            title = f"### {model['name']}\n**{'Original / high-poly' if model['kind'] == 'high' else 'Versão LOW'}**"
             if model["parent_id"]:
                 title += f"\nDerivado de **{studio.variant(model['parent_id'])['name']}**"
             if count:
@@ -34,12 +60,16 @@ def build_demo(studio):
             rejected = model.get("quality_status") == "rejected"
             if rejected:
                 title += "\n**Rejeitado para uso no jogo:** " + model["quality_reason"]
+            elif model.get("quality_status") == "approved":
+                title += "\n**Aprovado pelo usuário**"
             details = dict(model, metrics=report)
+            maps = texture_maps(model["model"], texture_cache)
             return (
                 gr.update(value=model["model"], visible=True),
                 gr.update(value=model["model"], visible=True), title, details,
                 gr.update(value="", visible=False), (identifier, "completed", model.get("quality_status")),
                 gr.update(interactive=not rejected),
+                gr.update(value=None, visible="hidden"), *texture_buttons(maps),
             )
         active = entry["status"] == "running"
         progress = read_progress(entry["output"], entry["stage"]) if active else {"stage": entry["status"]}
@@ -65,15 +95,21 @@ def build_demo(studio):
             gr.update(value=None, visible=False), gr.update(value=None, visible=False),
             f"### {html.escape(entry['name'])} · {label}", dict(entry, progress=progress),
             gr.update(value=panel, visible=True), revision, gr.update(interactive=False),
+            gr.update(value=None, visible="hidden"), *texture_buttons({}, completed=False),
         )
 
 
     def selected_refresh(identifier, previous_revision):
         if not identifier:
-            return (gr.skip(),) * 7
+            return (gr.skip(),) * selection_size
+        entry = studio.history_entry(identifier)
+        if entry["status"] == "completed":
+            revision = (identifier, "completed", entry.get("quality_status"))
+            if revision == previous_revision:
+                return (gr.skip(),) * selection_size
         view = selected_model(identifier)
         if view[5] == previous_revision:
-            return (gr.skip(),) * 7
+            return (gr.skip(),) * selection_size
         return view
 
 
@@ -128,6 +164,8 @@ def build_demo(studio):
                 reference = Path(model["reference"]) if model["reference"] else None
                 thumbnail = reference if reference and reference.is_file() else ROOT / "inputs/chair.png"
             label = "HIGH" if model["kind"] == "high" else "LOW"
+            if model.get("quality_status") == "approved":
+                label += " · Aprovado"
             if model.get("quality_status") == "rejected":
                 label = "Rejeitado"
             if model["status"] != "completed":
@@ -269,7 +307,7 @@ def build_demo(studio):
     def choose_image(identifiers, event: gr.SelectData):
         index = event.index[0] if isinstance(event.index, (tuple, list)) else event.index
         if not event.selected or not 0 <= index < len(identifiers):
-            return (gr.skip(),) * 10
+            return (gr.skip(),) * (selection_size + 3)
         running = studio.running_references().get(identifiers[index])
         if running:
             return (gr.skip(), "Acompanhando o processamento desta imagem.",
@@ -277,13 +315,13 @@ def build_demo(studio):
         reference = studio.reference_image(identifiers[index])
         notice = (f"Imagem {reference['name']} carregada como entrada. "
                   "Clique em Adicionar imagens à fila quando quiser gerar.")
-        return [reference["path"]], notice, *((gr.skip(),) * 8)
+        return [reference["path"]], notice, *((gr.skip(),) * (selection_size + 1))
 
 
     def choose_gallery(identifiers, event: gr.SelectData):
         index = event.index[0] if isinstance(event.index, (tuple, list)) else event.index
         if not event.selected or not 0 <= index < len(identifiers):
-            return (gr.skip(),) * 8
+            return (gr.skip(),) * (selection_size + 1)
         identifier = identifiers[index]
         return identifier, *selected_model(identifier)
 
@@ -313,6 +351,26 @@ def build_demo(studio):
         except (ValueError, OSError) as error:
             raise gr.Error(str(error)) from error
         return f"Remesh + UV + bake adicionado: {job}. O original será preservado.", *queue_rows()
+
+    def enqueue_uvgami(identifier, texture):
+        if not identifier:
+            raise gr.Error("Selecione um LOW no histórico.")
+        try:
+            job = studio.enqueue_unwrap(identifier, int(texture))
+        except (ValueError, OSError) as error:
+            raise gr.Error(str(error)) from error
+        return f"UVgami + bake adicionado: {job}. A geometria do LOW será preservada.", *queue_rows()
+
+    def uvgami_available(identifier):
+        if not identifier or studio.history_entry(identifier)["status"] != "completed":
+            return gr.update(interactive=False)
+        model = studio.variant(identifier)
+        compatible = (
+            model["kind"] == "low"
+            and model.get("quality_status") != "rejected"
+            and Path(model["model"]).with_name("optimized.blend").is_file()
+        )
+        return gr.update(interactive=compatible)
 
 
     with gr.Blocks(title="Phanes Studio") as demo:
@@ -360,12 +418,28 @@ def build_demo(studio):
                 )
             with gr.Column(scale=7, min_width=400):
                 model_title = gr.Markdown("### Selecione um modelo no histórico")
+                with gr.Row(elem_classes=["texture-toolbar"]):
+                    model_button = gr.Button("3D", interactive=False, scale=0, min_width=64)
+                    texture_button_components = [
+                        gr.Button(label, interactive=False, scale=0, min_width=64)
+                        for label in TEXTURE_LABELS.values()
+                    ]
                 viewer = gr.Model3D(
                     label="Modelo 3D", height=560, display_mode="solid",
                     clear_color=(0.15, 0.15, 0.18, 1),
                 )
+                texture_viewer = gr.Gallery(
+                    label="Textura", visible="hidden", height=560, columns=1,
+                    object_fit="contain", allow_preview=True, preview=True,
+                    interactive=False, buttons=["download", "fullscreen"],
+                    elem_id="texture-viewer",
+                )
                 processing = gr.HTML(visible=False)
                 download = gr.DownloadButton("Baixar GLB")
+                with gr.Accordion("UVgami · novos UVs e bake do LOW", open=True):
+                    gr.Markdown("Mantém a geometria do LOW e cria outra versão com UVs e texturas novos. Pode levar vários minutos. Requer o LOW com sua cena de bake; cada novo resultado precisa de revisão.")
+                    uv_texture = gr.Radio([512, 1024, 2048], value=1024, label="Textura UVgami")
+                    uv_button = gr.Button("Enviar LOW para UVgami + bake", interactive=False)
                 with gr.Accordion("Remesh automático + bake do modelo selecionado", open=True):
                     method = gr.Radio(
                         choices=[("Simplificação (Decimate preparado)", "simplify"),
@@ -432,15 +506,24 @@ def build_demo(studio):
         ]
         selection_outputs = [
             selected, viewer, download, model_title, details, processing, viewer_revision, remesh_button,
+            texture_viewer, model_button, *texture_button_components,
         ]
+        texture_outputs = [viewer, texture_viewer, model_button, *texture_button_components]
+        for channel, button in zip(("3d", *TEXTURE_LABELS), [model_button, *texture_button_components]):
+            button.click(
+                partial(show_texture, channel=channel), inputs=[selected], outputs=texture_outputs,
+                api_name=f"view_{channel}", concurrency_id="model-view", concurrency_limit=1,
+            )
         refresh_inputs = [
             history_ids, model_page, image_ids, image_page, selected, viewer_revision, gallery_revision,
         ]
         refresh_outputs = [*model_outputs, *image_outputs, jobs, finished_jobs, queue_status, gallery_revision,
                            *selection_outputs[1:]]
         timer = gr.Timer(3)
-        demo.load(refresh, inputs=refresh_inputs, outputs=refresh_outputs)
-        timer.tick(refresh, inputs=refresh_inputs, outputs=refresh_outputs, show_progress="hidden")
+        demo.load(refresh, inputs=refresh_inputs, outputs=refresh_outputs, show_progress="hidden",
+                  concurrency_id="model-view", concurrency_limit=1)
+        timer.tick(refresh, inputs=refresh_inputs, outputs=refresh_outputs, show_progress="hidden",
+                   concurrency_id="model-view", concurrency_limit=1)
         model_previous.click(
             previous_models, inputs=[model_page], outputs=model_outputs,
             api_name="models_previous_page",
@@ -469,12 +552,12 @@ def build_demo(studio):
             )
         reference_history.select(
             choose_image, inputs=[image_ids], outputs=[images, notice, *selection_outputs],
-            api_name="use_history_image",
+            api_name="use_history_image", concurrency_id="model-view", concurrency_limit=1,
         )
         history.select(
             choose_gallery, inputs=[history_ids],
             outputs=selection_outputs,
-            api_name="open_history_model",
+            api_name="open_history_model", concurrency_id="model-view", concurrency_limit=1,
         )
         generate.click(
             enqueue_images, inputs=[images, resolution, seed, faces, generation_texture],
@@ -485,6 +568,12 @@ def build_demo(studio):
             outputs=[notice, jobs, finished_jobs], api_name="enqueue_remesh",
         )
         selected.change(lod_choices, inputs=[selected], outputs=[lod_ids], api_name=False)
+        selected.change(uvgami_available, inputs=[selected], outputs=[uv_button], api_name=False)
+        viewer_revision.change(uvgami_available, inputs=[selected], outputs=[uv_button], api_name=False)
+        uv_button.click(
+            enqueue_uvgami, inputs=[selected, uv_texture],
+            outputs=[notice, jobs, finished_jobs], api_name="enqueue_uvgami",
+        )
         lod_refresh.click(lod_choices, inputs=[selected], outputs=[lod_ids], api_name="lod_choices")
         lod_pick.click(pick_lod_folder, inputs=[lod_destination], outputs=[lod_destination], api_name=False)
         lod_export.click(export_lods_ui, inputs=[lod_ids, lod_destination],

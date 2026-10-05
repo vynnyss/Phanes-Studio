@@ -29,6 +29,16 @@
       "revision": "25e0d31ffbebe4b5a97464dd851910efc3002d96"
     }
   ],
+  "uvgami": {
+    "repository": "https://github.com/DanielBoxer/UVgami",
+    "addon_version": "2.1.0",
+    "addon_url": "https://github.com/DanielBoxer/UVgami/releases/download/v2.1.0/UVgami.zip",
+    "addon_sha256": "fda57a911863dc3e7e959502842af86ad296306cea7d2d30239ea3de8eafe0bc",
+    "engine_version": "1.21.9",
+    "url": "https://github.com/DanielBoxer/UVgami/releases/download/optcuts-v1.21.9/optcuts-engine-1.21.9-windows.zip",
+    "sha256": "c4b95498c54472f76d11e695156427cafa1322d56494f90b5ce4e341474fe808",
+    "binary_sha256": "62a0d61a0c6d1d9d6b8e7bd590c8ad15dafb6c646669551b993c9c93102fc3fd"
+  },
   "instant_meshes": {
     "url": "https://instant-meshes.s3.eu-central-1.amazonaws.com/Release/instant-meshes-windows.zip",
     "sha256": "c9f6217e83ea90f98a8cd54cf82dac88420df20cf197e7a4ef2bef81c5ae068d"

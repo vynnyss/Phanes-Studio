@@ -57,6 +57,10 @@ Para ferramentas de agentes, prefira o comando `generate`, que também cuida de 
 
 Qualidade: versões incluem quality_status (unreviewed, approved ou rejected) e quality_reason. Remesh sobre rejected é recusado. O método padrão é simplify. Falha geométrica permanece no pedido/relatório, sem GLB falsamente concluído. Não aprovar qualidade em nome do usuário.
 
+UVgami: `POST /api/jobs/unwrap` recebe `variant_id`, `texture` (512/1024/2048, padrão 1024) e `request_key` opcional; devolve `job_id`/`status_url`. Usa a mesma fila e conserva geometria. Requer LOW não rejeitado, cena `optimized.blend` e motor instalado. CLI: `unwrap --model ID --texture 1024 --request-key CHAVE`.
+
+`POST /api/models/import-unwrap` recebe `variant_id` do LOW pai e `directory` absoluto do resultado existente, validado dentro de `outputs`; devolve a versão registrada sem alterar artefatos. CLI: `import-unwrap --model ID --directory PASTA`. `POST /api/models/{id}/review` recebe `state` (`approved`, `rejected`, `unreviewed`) e `reason` não vazio, devolvendo a revisão. CLI: `review --model ID --state approved --reason TEXTO`. Usar revisão apenas para registrar decisão explícita do usuário. Ver [UVGAMI.md](UVGAMI.md).
+
 Exportação de LODs cria uma pasta nova, GLBs incorporados, manifesto, relatórios e hashes. Seleções devem ter contagens distintas e não conter versões rejected. Consulte COMPARACAO_REMESH_E_LODS.md. Download pelo cliente também recusa sobrescrita.
 
 Há timeout de duas horas por worker. Cancelamento durante execução não está implementado. Fechar janela/chat não cancela trabalhos enviados. A fila ativa continua até esvaziar; fila pausada pode dormir, com registros preservados. Depois de 120 s ocioso sem clientes ou trabalho executável, o serviço encerra e remove seu manifesto. A próxima chamada de trabalho o inicia novamente.
