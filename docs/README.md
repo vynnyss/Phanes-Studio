@@ -37,3 +37,5 @@ Atualização de qualidade: método padrão Simplificação (Decimate preparado)
 - [Teste UV xatlas](TESTE_UV_XATLAS.md): dois candidatos com bake real sobre o LOW aprovado, comparativo e limites de margens/mipmaps.
 
 [Comparação Decimate/meshoptimizer e exportação de LODs](COMPARACAO_REMESH_E_LODS.md): candidatos reais e roteiro de review/exportação pela UI/API.
+
+[UVgami/OptCuts](UVGAMI.md): unwrap e bake separado sobre o LOW, instalação opcional e registro do resultado aprovado.

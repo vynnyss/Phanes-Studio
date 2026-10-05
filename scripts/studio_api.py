@@ -104,6 +104,35 @@ def create_api(studio, lifespan=None):
         variant_ids: list[str] = Field(min_length=1, max_length=8)
         target_directory: str
 
+    class UnwrapRequest(BaseModel):
+        variant_id: str
+        texture: int = 1024
+        request_key: str | None = None
+
+    @api.post("/api/jobs/unwrap")
+    def unwrap_job(request: UnwrapRequest):
+        identifier = protected(
+            studio.enqueue_unwrap, request.variant_id, request.texture,
+            origin="agent", request_key=request.request_key,
+        )
+        return {"job_id": identifier, "status_url": f"/api/jobs/{identifier}"}
+
+    class ImportUnwrapRequest(BaseModel):
+        variant_id: str
+        directory: str
+
+    @api.post("/api/models/import-unwrap")
+    def import_unwrap(request: ImportUnwrapRequest):
+        return protected(studio.import_unwrap, request.variant_id, request.directory)
+
+    class ReviewRequest(BaseModel):
+        state: str
+        reason: str
+
+    @api.post("/api/models/{identifier}/review")
+    def review_variant(identifier: str, request: ReviewRequest):
+        return protected(studio.review_variant, identifier, request.state, request.reason)
+
 
     @api.post("/api/exports/lods")
     def export_lod_package(request: LodExportRequest):

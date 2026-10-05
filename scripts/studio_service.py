@@ -22,6 +22,7 @@ BLENDER = Path(os.environ.get(
     "ASSET_BLENDER", "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe"
 ))
 INSTANT = ROOT / "runtime/tools/instant-meshes/bin/Instant Meshes.exe"
+UVGAMI = ROOT / "runtime/tools/uvgami-v2.1.0/optcuts/bin/optcuts.exe"
 DATA = ROOT / "local_data/studio"
 DB = DATA / "studio.db"
 
@@ -401,7 +402,7 @@ class Studio:
                 previous = decode(old)
                 if previous["kind"] != kind or previous["parameters"] != parameters:
                     raise ValueError("Request key already used with different parameters")
-                if kind == "remesh" and previous["parent_id"] != parent_id:
+                if kind in ("remesh", "unwrap") and previous["parent_id"] != parent_id:
                     raise ValueError("Request key already used for another model")
                 if kind == "generate":
                     old_hash = hashlib.sha256(Path(previous["input"]).read_bytes()).hexdigest()
@@ -475,6 +476,78 @@ class Studio:
         if not changed:
             raise ValueError("Only pending jobs can be cancelled")
 
+    def enqueue_unwrap(self, variant_id, texture=1024, origin="ui", request_key=None):
+        parent = self.variant(variant_id)
+        if parent["kind"] != "low" or parent["quality_status"] == "rejected":
+            raise ValueError("Selecione uma versão LOW não rejeitada para UVgami")
+        model_directory = Path(parent["model"]).resolve().parent
+        scene = (model_directory / "optimized.blend").resolve()
+        if not scene.is_file() or not scene.is_relative_to(model_directory):
+            raise ValueError("UVgami precisa da cena optimized.blend do bake deste LOW")
+        if not UVGAMI.is_file():
+            raise ValueError("Motor UVgami ausente; execute scripts/install_uvgami.py")
+        if texture not in (512, 1024, 2048):
+            raise ValueError("Invalid texture size")
+        return self.enqueue(
+            "unwrap", parent["name"] + " · UVgami", scene,
+            {"method": "uvgami-optcuts", "texture": texture},
+            parent_id=parent["id"], origin=origin, request_key=request_key,
+        )
+
+    def import_unwrap(self, variant_id, directory):
+        """Register an existing validated UV-only result without rewriting it."""
+        parent = self.variant(variant_id)
+        directory = Path(directory).resolve()
+        if not directory.is_relative_to((ROOT / "outputs").resolve()):
+            raise ValueError("UV result must be inside this workspace's outputs")
+        model = (directory / "model.glb").resolve()
+        report_path = (directory / "report.json").resolve()
+        if not model.is_relative_to(directory) or not report_path.is_relative_to(directory):
+            raise ValueError("UV result artifacts must remain inside their output directory")
+        report = json.loads(report_path.read_text(encoding="utf-8-sig"))
+        if (
+            parent["kind"] != "low"
+            or report.get("result") != "completed"
+            or not report.get("geometry_unchanged")
+        ):
+            raise ValueError("Only validated UV-only LOW results can be imported")
+        if (
+            "uvgami" not in report.get("method", "").lower()
+            or not report.get("transfer", {}).get("all_original_triangles_matched")
+        ):
+            raise ValueError("Missing UVgami geometry correspondence validation")
+        digest = report.get("protected_file_hashes", {}).get(parent["model"])
+        if digest != hashlib.sha256(Path(parent["model"]).read_bytes()).hexdigest():
+            raise ValueError("UV result does not match the selected parent LOW")
+        with model.open("rb") as stream:
+            header = stream.read(12)
+        if header[:4] != b"glTF" or int.from_bytes(header[8:12], "little") != model.stat().st_size:
+            raise ValueError("Invalid UV result GLB")
+        existing = self.find_model(model)
+        if existing:
+            if existing["parent_id"] != parent["id"]:
+                raise ValueError("UV result already belongs to another parent")
+            return self.variant(existing["id"])
+        identifier = "uvgami-" + uuid.uuid5(uuid.NAMESPACE_URL, str(model)).hex
+        self.add_variant(
+            identifier, parent["asset_id"], parent["id"], parent["name"] + " · UVgami",
+            "low", model, directory / "optimized-0.png", parent["reference"], report_path,
+        )
+        return self.variant(identifier)
+
+    def review_variant(self, identifier, state, reason):
+        self.variant(identifier)
+        if state not in ("approved", "rejected", "unreviewed") or not reason.strip():
+            raise ValueError("Use a valid review state and an explicit reason")
+        with connect() as db:
+            db.execute(
+                "INSERT INTO variant_reviews VALUES (?,?,?,?) "
+                "ON CONFLICT(variant_id) DO UPDATE SET state=excluded.state,"
+                "reason=excluded.reason,created=excluded.created",
+                (identifier, state, reason, now()),
+            )
+        return self.variant(identifier)
+
     def terminate_tree(self):
         try:
             parent = psutil.Process(self.process.pid)
@@ -497,6 +570,13 @@ class Studio:
                 "--input", job["input"], "--resolution", str(params["resolution"]),
                 "--name", "studio/" + job["id"], "--seed", str(params["seed"]),
                 "--faces", str(params["faces"]), "--texture", str(params["texture"]),
+            ]
+        if job["kind"] == "unwrap":
+            return [
+                str(PYTHON), "-u", str(ROOT / "scripts/uvgami_worker.py"),
+                "--source", job["input"], "--output", job["output"],
+                "--blender", str(BLENDER), "--engine", str(UVGAMI),
+                "--texture", str(params["texture"]),
             ]
         command = [
             str(BLENDER), "-b", "--factory-startup", "-t", "6",
@@ -571,7 +651,7 @@ class Studio:
                 header = stream.read(12)
             if header[:4] != b"glTF" or int.from_bytes(header[8:12], "little") != model.stat().st_size:
                 raise RuntimeError("Invalid GLB header or length")
-            if job["kind"] == "remesh":
+            if job["kind"] in ("remesh", "unwrap"):
                 parent = self.variant(job["parent_id"])
                 thumbnail = directory / "optimized-0.png"
                 asset_id = parent["asset_id"]
@@ -582,7 +662,7 @@ class Studio:
                 asset_id = job["id"]
                 reference = job["input"]
             self.add_variant(job["id"], asset_id, job["parent_id"], job["name"],
-                             "low" if job["kind"] == "remesh" else "high",
+                             "low" if job["kind"] in ("remesh", "unwrap") else "high",
                              model, thumbnail, reference, report_path)
             with connect() as db:
                 db.execute("UPDATE jobs SET status='completed',stage='completed',finished=? WHERE id=?",

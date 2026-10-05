@@ -19,7 +19,7 @@ Use uma pasta gravável e estável. Reserve aproximadamente 70 GB para runtime, 
 7. Instalar pacotes Node por lockfile (`npm ci`), copiar meshoptimizer e o Node local usado pelo worker, instalar o binário Electron e empacotar Phanes Studio.
 8. Gravar somente o caminho Blender em `local_data/settings.json` e criar atalhos do usuário, salvo `-NoShortcuts`. `ASSET_BLENDER` definido no ambiente tem prioridade sobre esse arquivo.
 
-Com `-OptionalTools`, Instant Meshes é baixado com hash verificado e xatlas 0.0.11 é instalado na pasta de ferramentas. Simplificação, QuadriFlow e meshoptimizer não exigem Instant Meshes. Os experimentos xatlas em `scripts/` usam inputs locais documentados, não são uma função genérica da interface.
+Com `-OptionalTools`, Instant Meshes e UVgami/OptCuts 1.21.9 são baixados com hash verificado e xatlas 0.0.11 é instalado na pasta de ferramentas. Simplificação, QuadriFlow e meshoptimizer não exigem Instant Meshes. UVgami pode ser instalado separadamente com o Python local executando `scripts/install_uvgami.py`; veja [UVGAMI.md](UVGAMI.md). Os experimentos xatlas em `scripts/` usam inputs locais documentados, não são uma função genérica da interface.
 
 ## Comandos
 

@@ -132,14 +132,16 @@ class ManagedRuntime:
                 from fastapi import FastAPI
                 from studio_ui import build_demo
                 from studio_pagination import PAGINATION_CSS
+                from studio_textures import TEXTURE_CSS
                 demo = build_demo(self.studio)
                 container = gr.mount_gradio_app(
-                    FastAPI(), demo, path="/", css=PAGINATION_CSS,
+                    FastAPI(), demo, path="/", css=PAGINATION_CSS + TEXTURE_CSS,
                     server_name="127.0.0.1", server_port=self.port,
                     ssr_mode=False, mcp_server=False,
                     allowed_paths=[
                         str(self.root / "outputs"), str(self.root / "inputs"),
                         str(self.root / "local_data/studio/images"),
+                        str(self.root / "local_data/studio/texture-previews"),
                     ],
                 )
                 return container

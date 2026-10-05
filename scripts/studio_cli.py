@@ -47,6 +47,17 @@ def build_parser():
     remesh.add_argument("--texture", type=int, choices=(512, 1024, 2048), default=2048)
     remesh.add_argument("--repair", action="store_true")
     remesh.add_argument("--request-key")
+    unwrap = commands.add_parser("unwrap")
+    unwrap.add_argument("--model", required=True)
+    unwrap.add_argument("--texture", type=int, choices=(512, 1024, 2048), default=1024)
+    unwrap.add_argument("--request-key")
+    import_uv = commands.add_parser("import-unwrap")
+    import_uv.add_argument("--model", required=True)
+    import_uv.add_argument("--directory", type=Path, required=True)
+    review = commands.add_parser("review")
+    review.add_argument("--model", required=True)
+    review.add_argument("--state", choices=("approved", "rejected", "unreviewed"), required=True)
+    review.add_argument("--reason", required=True)
     export = commands.add_parser("export-lods")
     export.add_argument("--model", action="append", required=True)
     export.add_argument("--directory", type=Path, required=True)
@@ -112,6 +123,19 @@ def execute(client, arguments):
         return client.request("POST", "/api/exports/lods", json={
             "variant_ids": arguments.model,
             "target_directory": str(arguments.directory.resolve()),
+        }), 0
+    if command == "unwrap":
+        return client.request("POST", "/api/jobs/unwrap", json={
+            "variant_id": arguments.model, "texture": arguments.texture,
+            "request_key": arguments.request_key,
+        }), 0
+    if command == "import-unwrap":
+        return client.request("POST", "/api/models/import-unwrap", json={
+            "variant_id": arguments.model, "directory": str(arguments.directory.resolve()),
+        }), 0
+    if command == "review":
+        return client.request("POST", f"/api/models/{arguments.model}/review", json={
+            "state": arguments.state, "reason": arguments.reason,
         }), 0
     if command == "download":
         return client.download(arguments.model, arguments.destination), 0

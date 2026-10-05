@@ -25,6 +25,7 @@ A [licença MIT da raiz](LICENSE) cobre o código Phanes distribuído neste repo
 | Instant Meshes, opcional | [Wenzel Jakob, Marco Tarini, Daniele Panozzo e Olga Sorkine-Hornung](https://github.com/wjakob/instant-meshes) | [Licença BSD com texto adicional de contribuições](licenses/INSTANT-MESHES.txt) |
 | xatlas / xatlas-python, opcionais | [Jonathan Young](https://github.com/jpcy/xatlas) / [Michael Worchel](https://github.com/mworchel/xatlas-python) | MIT; avisos acompanham a instalação |
 | Blender, instalado separadamente | [Blender Foundation e contributors](https://www.blender.org/about/license/) | GPL; Phanes o invoca como processo externo e não inclui o executável |
+| UVgami 2.1.0 / OptCuts 1.21.9, opcional | [Daniel Boxer e autores do OptCuts](https://github.com/DanielBoxer/UVgami) | GPL-3.0-or-later, com permissão adicional de combinação com Triangle no motor; executado como processo externo. Textos completos e avisos de Triangle/libigl/TBB/mimalloc/tclap são preservados junto ao binário baixado. Fontes e hashes em `setup/sources.json`; não se aplica a licença MIT do Phanes a esses componentes. |
 
 Outras dependências Python/Node mantêm os avisos de suas distribuições. Esta tabela é uma indicação de proveniência, não substitui os textos completos nem concede direitos adicionais.
 

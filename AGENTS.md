@@ -13,7 +13,7 @@ Após clonar, use `Install-PhanesStudio.ps1`; opções e requisitos em `README.m
 - Exemplo PowerShell: `& 'D:\Projetos\3dGeneratorNew\Studio-Agent.cmd' models`.
 - Envio: `generate --image CAMINHO_ABSOLUTO --request-key CHAVE_ESTAVEL`. Guarde os `job_id`; use `job ID` ou `wait ID` para acompanhar.
 - Reenvie a mesma chave apenas com a mesma imagem e parâmetros. Uma chave com conteúdo diferente é recusada. Em lote, o cliente acrescenta o hash de cada imagem à chave.
-- Comandos disponíveis: `start`, `status`, `models`, `history`, `images`, `jobs`, `job`, `generate`, `remesh`, `wait`, `pause`, `resume`, `cancel`, `download`, `export-lods`, `stop`.
+- Comandos disponíveis: `start`, `status`, `models`, `history`, `images`, `jobs`, `job`, `generate`, `remesh`, `unwrap`, `import-unwrap`, `review`, `wait`, `pause`, `resume`, `cancel`, `download`, `export-lods`, `stop`. UVgami sobre LOW preserva a geometria; guia em `docs/UVGAMI.md`. `review` apenas registra decisão explícita do usuário; não inferir aprovação de resultados futuros.
 - Códigos de saída: 0 sucesso; 1 erro operacional; 2 argumentos inválidos ou pedido terminado sem sucesso em `wait`; 3 timeout de espera. Timeout não cancela o trabalho.
 
 ## Fila e arquivos
